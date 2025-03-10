@@ -3,10 +3,10 @@ import string
 from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
 from tkinter import Tk, filedialog
 
+import torch
+from transformers import BertTokenizer, BertModel
 import numpy as np
 import re
-from sklearn.metrics.pairwise import cosine_similarity
-from sklearn.feature_extraction.text import TfidfVectorizer
 from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize
 import nltk
@@ -14,6 +14,10 @@ import nltk
 # Ensure you have the necessary NLTK resources
 nltk.download('punkt')
 nltk.download('stopwords')
+
+# Load pre-trained BERT model and tokenizer
+tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+model = BertModel.from_pretrained('bert-base-uncased')
 
 # ---------------------- File Handling Functions ----------------------
 
@@ -238,19 +242,31 @@ def preprocess_text(text):
 
 # ---------------------- Similarity Calculation ----------------------
 
-def calculate_cosine_similarity(doc1, doc2):
-    """Calculate cosine similarity between two documents."""
-    # Preprocess documents
-    doc1 = preprocess_text(doc1)
-    doc2 = preprocess_text(doc2)
+def get_bert_embeddings(text):
+    """Generate BERT embeddings for the input text."""
+    # Preprocess the text
+    text = preprocess_text(text)
     
-    # Vectorization using TF-IDF
-    tfidf_vectorizer = TfidfVectorizer()
-    tfidf_matrix = tfidf_vectorizer.fit_transform([doc1, doc2])
+    # Tokenize and encode the text
+    inputs = tokenizer(text, return_tensors='pt', padding=True, truncation=True, max_length=512)
+    
+    # Get the embeddings from BERT
+    with torch.no_grad():
+        outputs = model(**inputs)
+    
+    # Get the embeddings of the [CLS] token (first token)
+    embeddings = outputs.last_hidden_state[:, 0, :].numpy()
+    return embeddings
+
+def calculate_similarity(doc1, doc2):
+    """Calculate cosine similarity between two documents using BERT embeddings."""
+    # Get embeddings for both documents
+    embedding1 = get_bert_embeddings(doc1)
+    embedding2 = get_bert_embeddings(doc2)
     
     # Calculate cosine similarity
-    cosine_sim = cosine_similarity(tfidf_matrix[0:1], tfidf_matrix[1:2])
-    return cosine_sim[0][0]
+    cosine_similarity = np.dot(embedding1, embedding2.T) / (np.linalg.norm(embedding1) * np.linalg.norm(embedding2))
+    return cosine_similarity[0][0]
 
 # ---------------------- Contextual Analysis ----------------------
 
@@ -292,9 +308,9 @@ domain_keywords = ['security', 'data', 'analysis', 'algorithm', 'similarity', 'd
 doc1 = extracted_text  # First document
 doc2 = "This is a sample document for testing similarity in data analysis."  # Second document
 
-# Calculate cosine similarity
-similarity_score = calculate_cosine_similarity(doc1, doc2)
-print(f"Cosine Similarity Score: {similarity_score:.4f}")
+# Calculate BERT similarity
+similarity_score = calculate_similarity(doc1, doc2)
+print(f"BERT Cosine Similarity Score: {similarity_score:.4f}")
 
 # Extract domain-specific keywords
 keywords = extract_domain_specific_keywords(doc1, domain_keywords)
@@ -308,5 +324,5 @@ print(f"Most Frequent Terms in Document 1: {frequent_terms}")
 documents = [doc1, doc2, "Another document for testing purposes."]
 for i in range(len(documents)):
     for j in range(i + 1, len(documents)):
-        score = calculate_cosine_similarity(documents[i], documents[j])
-        print(f"Cosine Similarity between Document {i+1} and Document {j+1}: {score:.4f}")
+        score = calculate_similarity(documents[i], documents[j])
+        print(f"BERT Cosine Similarity between Document {i+1} and Document {j+1}: {score:.4f}")
