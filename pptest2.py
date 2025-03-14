@@ -3,10 +3,10 @@ import string
 from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
 from tkinter import Tk, filedialog
 
+import torch
+from transformers import BertTokenizer, BertModel
 import numpy as np
 import re
-from sklearn.metrics.pairwise import cosine_similarity
-from sklearn.feature_extraction.text import TfidfVectorizer
 from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize
 import nltk
@@ -14,6 +14,10 @@ import nltk
 # Ensure you have the necessary NLTK resources
 nltk.download('punkt')
 nltk.download('stopwords')
+
+# Load pre-trained BERT model and tokenizer
+tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+model = BertModel.from_pretrained('bert-base-uncased')
 
 # ---------------------- File Handling Functions ----------------------
 
@@ -30,12 +34,23 @@ def read_text_file(file_path):
     with open(file_path, 'r', encoding='utf-8') as file:
         return file.read()
 
-def get_file_path():
-    """Opens file dialog for the user to select a file."""
+def get_file_paths():
+    """
+    Opens file dialog for the user to select one or more PDF or text files.
+    This function returns a list of file paths.
+    """
     Tk().withdraw()  # Hides the main window
-    file_path = filedialog.askopenfilename(title="Select a file", 
-                                           filetypes=[("PDF files", "*.pdf"), ("Text files", "*.txt")])
-    return file_path
+    file_paths = filedialog.askopenfilenames(
+        title="Select PDF or Text Files",
+       filetypes=[
+    ("All Supported Files", "*.pdf *.txt"),  # No semicolon, use space
+    ("PDF files", "*.pdf"),
+    ("Text files", "*.txt")
+],
+
+        initialdir="."  # Start in current directory
+    )
+    return list(file_paths)
 
 # ---------------------- B+ Tree Implementation ----------------------
 
@@ -63,13 +78,13 @@ class BplusTree:
             i = 0
             while i < len(temp_values) and value > temp_values[i]:
                 i += 1
-            
+
             # Check if i is within bounds of keys
             if i >= len(current_node.keys):  # Prevent IndexError
                 return current_node
-            
+
             current_node = current_node.keys[i]
-        
+
         return current_node
 
     def insert(self, value):
@@ -170,21 +185,28 @@ class BplusTree:
 
 # ---------------------- Execution Code ----------------------
 
-# Automatically get file path
-file_path = get_file_path()
+# Get multiple file paths (PDFs or TXT files)
+file_paths = get_file_paths()
 
-# Process selected file
-if file_path.endswith(".pdf"):
-    extracted_text = extract_text_with_pymupdf(file_path)
-    documents = [extracted_text]
-elif file_path.endswith(".txt"):
-    file_contents = read_text_file(file_path)
-    documents = [file_contents]
-else:
-    print("Unsupported file type. Please select a PDF or TXT file.")
+if not file_paths:
+    print("No files selected. Exiting.")
     exit()
 
-# Vectorization (CountVectorizer & TF-IDF)
+# Process selected files and collect their content
+documents = []
+for file_path in file_paths:
+    if file_path.lower().endswith(".pdf"):
+        text = extract_text_with_pymupdf(file_path)
+        documents.append(text)
+    elif file_path.lower().endswith(".txt"):
+        text = read_text_file(file_path)
+        documents.append(text)
+    else:
+        print(f"Unsupported file type for file {file_path}. Skipping.")
+
+# ---------------------- Vectorization (CountVectorizer & TF-IDF) ----------------------
+
+# Combine all documents for vectorization
 count_vectorizer = CountVectorizer(stop_words='english')
 X_count = count_vectorizer.fit_transform(documents)
 
@@ -203,11 +225,12 @@ print("Vectorized Output (TF-IDF):\n", X_tfidf.toarray())
 order = 4
 bplustree = BplusTree(order)
 
-# Insert words into the B+ Tree
+# Insert words from the CountVectorizer vocabulary into the B+ Tree
 for word in count_vectorizer.get_feature_names_out():
     bplustree.insert(word)
 
 print("\nB+ Tree after insertions:")
+
 def printTree(tree):
     lst = [tree.root]
     while lst:
@@ -238,19 +261,31 @@ def preprocess_text(text):
 
 # ---------------------- Similarity Calculation ----------------------
 
-def calculate_cosine_similarity(doc1, doc2):
-    """Calculate cosine similarity between two documents."""
-    # Preprocess documents
-    doc1 = preprocess_text(doc1)
-    doc2 = preprocess_text(doc2)
+def get_bert_embeddings(text):
+    """Generate BERT embeddings for the input text."""
+    # Preprocess the text
+    text = preprocess_text(text)
     
-    # Vectorization using TF-IDF
-    tfidf_vectorizer = TfidfVectorizer()
-    tfidf_matrix = tfidf_vectorizer.fit_transform([doc1, doc2])
+    # Tokenize and encode the text
+    inputs = tokenizer(text, return_tensors='pt', padding=True, truncation=True, max_length=512)
+    
+    # Get the embeddings from BERT
+    with torch.no_grad():
+        outputs = model(**inputs)
+    
+    # Get the embeddings of the [CLS] token (first token)
+    embeddings = outputs.last_hidden_state[:, 0, :].numpy()
+    return embeddings
+
+def calculate_similarity(doc1, doc2):
+    """Calculate cosine similarity between two documents using BERT embeddings."""
+    # Get embeddings for both documents
+    embedding1 = get_bert_embeddings(doc1)
+    embedding2 = get_bert_embeddings(doc2)
     
     # Calculate cosine similarity
-    cosine_sim = cosine_similarity(tfidf_matrix[0:1], tfidf_matrix[1:2])
-    return cosine_sim[0][0]
+    cosine_similarity = np.dot(embedding1, embedding2.T) / (np.linalg.norm(embedding1) * np.linalg.norm(embedding2))
+    return cosine_similarity[0][0]
 
 # ---------------------- Contextual Analysis ----------------------
 
@@ -264,8 +299,6 @@ def extract_domain_specific_keywords(doc, domain_keywords):
     specific_keywords = [word for word in words if word in domain_keywords]
     return specific_keywords
 
-# ---------------------- Additional Contextual Analysis ----------------------
-
 def identify_frequent_terms(doc, top_n=5):
     """Identify the most frequent terms in the document."""
     # Preprocess document
@@ -274,10 +307,7 @@ def identify_frequent_terms(doc, top_n=5):
     word_freq = {}
     
     for word in words:
-        if word in word_freq:
-            word_freq[word] += 1
-        else:
-            word_freq[word] = 1
+        word_freq[word] = word_freq.get(word, 0) + 1
     
     # Sort words by frequency
     sorted_words = sorted(word_freq.items(), key=lambda item: item[1], reverse=True)
@@ -288,25 +318,26 @@ def identify_frequent_terms(doc, top_n=5):
 # Define domain-specific keywords
 domain_keywords = ['security', 'data', 'analysis', 'algorithm', 'similarity', 'document', 'text']
 
-# Assuming 'extracted_text' is the text from the PDF or TXT file
-doc1 = extracted_text  # First document
-doc2 = "This is a sample document for testing similarity in data analysis."  # Second document
+# ---------------------- Similarity Calculations ----------------------
 
-# Calculate cosine similarity
-similarity_score = calculate_cosine_similarity(doc1, doc2)
-print(f"Cosine Similarity Score: {similarity_score:.4f}")
+# If you uploaded multiple documents, calculate pairwise BERT similarity:
+if len(documents) > 1:
+    for i in range(len(documents)):
+        for j in range(i + 1, len(documents)):
+            score = calculate_similarity(documents[i], documents[j])
+            print(f"BERT Cosine Similarity between Document {i+1} and Document {j+1}: {score:.4f}")
+else:
+    # If only one document was uploaded, compare it to a sample document
+    doc1 = documents[0]
+    doc2 = "This is a sample document for testing similarity in data analysis."
+    similarity_score = calculate_similarity(doc1, doc2)
+    print(f"BERT Cosine Similarity Score: {similarity_score:.4f}")
 
-# Extract domain-specific keywords
-keywords = extract_domain_specific_keywords(doc1, domain_keywords)
-print(f"Domain-Specific Keywords: {keywords}")
+# ---------------------- Additional Contextual Analysis ----------------------
 
-# Identify frequent terms in the first document
-frequent_terms = identify_frequent_terms(doc1, top_n=10)
+# For example, analyze the first document
+doc = documents[0]
+keywords = extract_domain_specific_keywords(doc, domain_keywords)
+frequent_terms = identify_frequent_terms(doc, top_n=10)
+print(f"Domain-Specific Keywords in Document 1: {keywords}")
 print(f"Most Frequent Terms in Document 1: {frequent_terms}")
-
-# If you have multiple documents, you can loop through them
-documents = [doc1, doc2, "Another document for testing purposes."]
-for i in range(len(documents)):
-    for j in range(i + 1, len(documents)):
-        score = calculate_cosine_similarity(documents[i], documents[j])
-        print(f"Cosine Similarity between Document {i+1} and Document {j+1}: {score:.4f}")
