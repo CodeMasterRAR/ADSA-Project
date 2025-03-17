@@ -1,0 +1,95 @@
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@300..900&family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <title>ADSA</title>
+    <style>
+        .font-poppins {
+            font-family: 'Poppins', sans-serif;
+        }
+
+        .dragColor {
+            background-color : #8094dc;
+        }
+
+        .custom-border {
+        border-color: #8094dc !important;
+    }
+    </style>
+</head>
+<body>
+    <main class="flex h-full bg-gray-100">
+        <!--Left side navbar-->
+        <div class="flex flex-col w-[250px] border-black h-full mt-4 rounded-sm ml-5">
+            <div class="border-black h-[300px] font-Poppins flex flex-col items-center justify-center mb-5 bg-white rounded-sm">
+                <div class="w-16 h-16 bg-gray-400 rounded-full overflow-hidden">
+                    <img src="avatar.jpg" alt="avatar" class="w-full h-full object-cover">
+                </div>
+                
+                <div class="font-poppins pt-5 font-semibold">UserName</div>
+                <div class="font-poppins">username@gmail.com</div>
+            </div>
+            <div class="border-black h-[600px] flex flex-col pt-12 pb-8 rounded-sm bg-white ">
+                <div class="flex ml-4 font-poppins text-sm mb-9"><img class= "mr-2" width="20" height="20" src="https://img.icons8.com/material-rounded/24/dashboard-layout.png" alt="dashboard-layout"/>Home</div>
+                <div class="flex ml-4 font-poppins text-sm mb-9"><img class="mr-2" width="20" height="20" src="https://img.icons8.com/material-outlined/24/file.png" alt="file"/>All Files</div>
+                <div class="flex ml-4 font-poppins text-sm mb-9"><img class="mr-2" width="20" height="20" src="https://img.icons8.com/material-outlined/24/star--v2.png" alt="star--v2"/>Starred</div>
+                <div class="flex ml-4 font-poppins text-sm mb-9"><img class="mr-2"width="20" height="20" src="https://img.icons8.com/material-outlined/24/settings--v1.png" alt="settings--v1"/>Setting</div>
+                <div class="flex ml-4 font-poppins text-sm mb-9"><img class="mr-2" width="20" height="20" src="https://img.icons8.com/material-outlined/24/open-pane.png" alt="open-pane"/>Log Out</div>
+            </div>
+        </div>
+
+        <!--Middle part-->
+        <div class="flex flex-col w-[700px] border-black h-full ml-8 mr-8 mt-4 rounded-sm">
+            <div class="border-black h-[400px] rounded-sm bg-white mb-4">
+                <!--Heading-->
+                <div class="flex justify-between mb-3">
+                    <div class="font-poppins pl-4 pt-3 font-medium">Plagiarism Checker</div>
+                    <div class="pr-4 pt-2"><img width="25" height="25" src="https://img.icons8.com/ios/50/ellipsis.png" alt="ellipsis"/></div>
+                </div>
+                <!--Main dragdrop-->
+                <div class="pl-4 pr-4">
+                    <div id="dropzone" class="border-2 border-dashed custom-border bg-blue-50 p-6 rounded-lg flex flex-col items-center justify-center text-center cursor-pointer h-[260px]">
+                        <div><img width="50" height="50" src="https://img.icons8.com/ios/50/upload-to-cloud.png" alt="upload-to-cloud"/></div>
+                        <p class="text-sm text-[#8094dc] font-poppins mt-4 mb-3 w-[180px]">Drag your files here, file size less than 15 MB or</p>
+            
+                        <!-- File Input -->
+                        <input type="file" id="fileInput" class="w-[400px] h-[170px] border-2 border black absolute hidden" accept=".pdf">
+                        <button id="browseBtn" class="mt-3 dragColor font-poppins w-[140px] rounded-sm h-[34px] text-white">Browse File</button>
+                    </div>
+                </div>
+
+            </div>
+            <div class="border-black h-[300px] rounded-sm bg-white"></div>
+        </div>
+
+        <!--Last Part-->
+        <div class="flex flex-col w-[290px] border-black h-full mt-4 rounded-sm">
+            <div class="h-full flex flex-col bg-white rounded-sm">
+            <div class="flex justify-between mb-6">
+                <div class="font-poppins font-medium pl-3 pt-3">History</div>
+                <div class="pr-4 pt-3"><img width="25" height="25" src="https://img.icons8.com/ios/50/ellipsis.png" alt="ellipsis"/></div>
+            </div>
+            <div class="border-black h-[65px] mb-4 mx-3 rounded-sm bg-gray-100 flex">
+                <div class="py-3 pl-2"><img width="40" height="40" src="https://img.icons8.com/def904/wired/64/doc.png" alt="doc"/></div>
+                <div class="flex flex-col pl-8 pt-3">
+                    <div class="font-poppins text-sm">TestFile.doc</div>
+                    <div class="font-poppins text-gray-500 text-sm">2.1 MB</div>
+                </div>
+            </div>
+            <div class="border-black h-[65px] mb-4 mx-3 rounded-sm bg-gray-100"></div>
+            <div class="border-black h-[65px] mb-4 mx-3 rounded-sm bg-gray-100"></div>
+            <div class="border-black h-[65px] mb-4 mx-3 rounded-sm bg-gray-100"></div>
+            <div class="border-black h-[65px] mb-4 mx-3 rounded-sm bg-gray-100"></div>
+            <div class="border-black h-[65px] mb-4 mx-3 rounded-sm bg-gray-100"></div>
+
+
+            </div>
+
+        </div>
+    </main>
+</body>
+</html>
